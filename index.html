@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Storybook</title>
+  <style>
+    html, body { height: 100%; margin: 0; background: #000; overflow: hidden; }
+
+    /* BLUR THE WHOLE STAGE UNTIL UNLOCK */
+    .stage {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      filter: blur(22px);
+      transition: filter 0.6s ease;
+    }
+
+    #pageImg {
+      position: absolute; inset: 0;
+      width: 100vw; height: 100vh;
+      object-fit: contain;
+      background: #000;
+      z-index: 1;
+    }
+
+    .caption {
+      position: absolute;
+      left: 16px; right: 16px;
+      bottom: 18px;
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(0,0,0,.55);
+      color: #fff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 900ms ease, transform 900ms ease;
+      pointer-events: none;
+      z-index: 8;
+    }
+    .caption.show { opacity: 1; transform: translateY(0); }
+
+    .topbar {
+      position: absolute; top: 12px; left: 12px; right: 12px;
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .pill, .btn {
+      pointer-events: auto;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      backdrop-filter: blur(6px);
+      color: #fff;
+    }
+
+    .pill { padding: 8px 12px; border-radius: 999px; background: rgba(0,0,0,.45); }
+
+    .btn  {
+      appearance: none; border: 0;
+      padding: 10px 14px; border-radius: 999px;
+      background: rgba(0,0,0,.65);
+      cursor: pointer;
+    }
+
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .navZone {
+      position: absolute; top: 0; bottom: 0;
+      width: 18vw; min-width: 80px;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none;
+      z-index: 5;
+    }
+
+    .navZone.left { left: 0; }
+    .navZone.right { right: 0; }
+
+    .arrow {
+      width: 56px; height: 56px; border-radius: 999px;
+      background: rgba(0,0,0,.55);
+      display: grid; place-items: center;
+      font-size: 26px;
+      cursor: pointer;
+      pointer-events: auto;
+      backdrop-filter: blur(6px);
+      color: #fff;
+    }
+
+    .arrow.disabled { opacity: .35; cursor: not-allowed; }
+
+    .lock {
+      position: fixed; inset: 0;
+      display: grid; place-items: center;
+      background: radial-gradient(1200px 800px at 50% 40%, rgba(255,255,255,.08), rgba(0,0,0,.92));
+      z-index: 50;
+      padding: 20px;
+    }
+
+    .lockCard {
+      width: min(520px, 92vw);
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(12px);
+      color: #fff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      box-shadow: 0 18px 60px rgba(0,0,0,.45);
+    }
+
+    .lockCard h2 { margin: 0 0 8px 0; font-size: 20px; }
+    .lockCard p { margin: 0 0 14px 0; opacity: .9; line-height: 1.4; }
+
+    .row { display: flex; gap: 10px; }
+
+    input {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.35);
+      color: #fff;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .error { margin-top: 10px; color: rgba(255,120,120,1); display: none; }
+
+    /* --- Secret modal --- */
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(0,0,0,.65);
+      z-index: 60;
+      padding: 18px;
+    }
+    .modal.show { display: grid; }
+
+    .modalCard {
+      width: min(720px, 95vw);
+      border-radius: 18px;
+      padding: 18px;
+      background: rgba(0,0,0,.6);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 80px rgba(0,0,0,.55);
+      color: #fff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+
+    .modalTitle {
+      font-size: 22px;
+      margin: 0 0 10px 0;
+    }
+
+    .modalText {
+      margin: 0 0 14px 0;
+      opacity: .95;
+      line-height: 1.55;
+    }
+
+    .btnRow {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btnPrimary { background: rgba(255,255,255,.14); }
+    .btnGhost { background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.18); }
+
+    .letterBox {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.06);
+      line-height: 1.65;
+      max-height: 55vh;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+<div id="lock" class="lock">
+  <div class="lockCard">
+    <h2>🔒 Unlock the book</h2>
+    <p>Enter the password to open the story.</p>
+    <div class="row">
+      <input id="pw" type="password" placeholder="Password" autocomplete="off" />
+      <button id="unlockBtn" class="btn">Unlock</button>
+    </div>
+    <div id="err" class="error">Wrong password — try again.</div>
+  </div>
+</div>
+
+<div class="stage">
+  <img id="pageImg" src="images/1.png" alt="Page 1" />
+
+  <div class="topbar">
+    <div class="pill" id="pageLabel">Page 1 / 16</div>
+    <div style="display:flex; gap:10px;">
+      <button id="secretBtn" class="btn btnPrimary" style="display:none;">Open Secret Message 💌</button>
+      <button id="musicBtn" class="btn" disabled>Pause Music</button>
+    </div>
+  </div>
+
+  <div class="navZone left"><div id="leftArrow" class="arrow">‹</div></div>
+  <div class="navZone right"><div id="rightArrow" class="arrow">›</div></div>
+
+  <div id="caption" class="caption"></div>
+
+  <audio id="bgm" loop>
+    <source src="music/background.mp3" type="audio/mpeg" />
+  </audio>
+</div>
+
+<!-- Secret Modal -->
+<div id="secretModal" class="modal" aria-hidden="true">
+  <div class="modalCard">
+    <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+      <h3 class="modalTitle" id="modalTitle">A secret message 💝</h3>
+      <button id="closeModalBtn" class="btn btnGhost">Close</button>
+    </div>
+
+    <!-- Step 1: Reveal button content -->
+    <div id="proposalStep">
+      <p class="modalText" style="font-size:18px; margin-top:8px;">
+        Will you be my valentine?
+      </p>
+      <div class="btnRow">
+        <button id="yesBtn" class="btn btnPrimary">Yes</button>
+        <button id="noBtn" class="btn btnGhost">No</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Letter -->
+    <div id="letterStep" style="display:none;">
+      <p class="modalText" style="margin-top:8px;">
+       Happy Valentine's Bear Bearr 💌
+      </p>
+      <div class="letterBox" id="letterBox">
+To my dearest Pomme-bear,
+
+This is our third Valentine’s Day together, and the first one we’re spending apart — but like the golden thread in the story, we’ve never really been separate.
+
+For this Valentine’s, I wanted to create something special for you instead of buying a gift. I made this website just for you - a small reminder of all the beautiful moments we’ve shared, and of the many more adventures still to come.
+
+I know I say this in every card I give you, but I am incredibly grateful to have you in my life — to support me in everything I do, and to grow alongside me.
+
+We might not get to spend as much time together, or see each other as often as other couples do, but I want you to know that I am by your side through the happy times and the not-so-happy times — always.
+
+Thank you for being you, for loving me, and for being the best partner I could have ever asked for.
+
+Love,
+Boobeary
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*
+  IMPORTANT:
+  You said "page 18". This logic shows the secret button on the FINAL page.
+  If you later set your images to 18, just change length below to 18.
+*/
+const pages = Array.from({length: 16}, (_, i) => `images/${i+1}.png`);
+const PASSWORD = "pommebear";
+
+let idx = 0;
+let musicStarted = false;
+
+const stage = document.querySelector('.stage');
+const img = document.getElementById('pageImg');
+const pageLabel = document.getElementById('pageLabel');
+const captionEl = document.getElementById('caption');
+const leftArrow = document.getElementById('leftArrow');
+const rightArrow = document.getElementById('rightArrow');
+const bgm = document.getElementById('bgm');
+const musicBtn = document.getElementById('musicBtn');
+const lock = document.getElementById('lock');
+const pw = document.getElementById('pw');
+const unlockBtn = document.getElementById('unlockBtn');
+const err = document.getElementById('err');
+
+const secretBtn = document.getElementById('secretBtn');
+const secretModal = document.getElementById('secretModal');
+const closeModalBtn = document.getElementById('closeModalBtn');
+const proposalStep = document.getElementById('proposalStep');
+const letterStep = document.getElementById('letterStep');
+const yesBtn = document.getElementById('yesBtn');
+const noBtn = document.getElementById('noBtn');
+
+/* ---- PLACEHOLDER STORY TEXT PER PAGE ---- */
+const captions = [
+  "Somewhere between problem sets and recruiting, I found my person.",
+  "Boston was cold, but loving you made it warm.",
+  "Exploring the world — where should we go next?",
+  "Cartagena: Under old wooden beams and slow ceiling fans — a date with you.",
+  "Arenal: Chasing sloths, rain, and beautiful moments.",
+  "Patagonia: To the edges of the world, we adventured.",
+  "Atacama: Under the Milky Way — we wished on a shooting star.",
+  "Morocco: Lost in the winding streets of the medina, but never lost with you.",
+  "Tanzania: Even at my weakest, you took care of me.",
+  "So many chapters written — and we’re only at the beginning.",
+  "The city is loud and busy, but I miss you.",
+  "Two skylines, one (Bangkok) heart :P",
+  "Miles apart, but somehow closer than ever.",
+  "My favorite appointment of the week is you.",
+  "No matter the distance, there’s a light that always leads me back to you.",
+  "And finally… a secret magical note for you 💝 (look on the top right)"
+];
+
+/* ---- CAPTION FADE FUNCTION ---- */
+function setCaption(text){
+  captionEl.classList.remove('show');
+  captionEl.textContent = text || "";
+  if(text){
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => captionEl.classList.add('show'))
+    );
+  }
+}
+
+function resetSecretFlow(){
+  proposalStep.style.display = "block";
+  letterStep.style.display = "none";
+  noBtn.textContent = "No";
+}
+
+function render() {
+  img.src = pages[idx];
+  pageLabel.textContent = `Page ${idx + 1} / ${pages.length}`;
+  leftArrow.classList.toggle('disabled', idx === 0);
+  rightArrow.classList.toggle('disabled', idx === pages.length - 1);
+  setCaption(captions[idx] ?? "");
+
+  // Show secret button ONLY on final page
+  const onLast = idx === pages.length - 1;
+  secretBtn.style.display = onLast ? "inline-block" : "none";
+
+  // If leaving last page, close modal and reset
+  if (!onLast) {
+    secretModal.classList.remove("show");
+    secretModal.setAttribute("aria-hidden", "true");
+    resetSecretFlow();
+  }
+}
+
+async function startMusic() {
+  try {
+    await bgm.play();
+    musicStarted = true;
+    musicBtn.disabled = false;
+    musicBtn.textContent = "Pause Music";
+  } catch (e) {
+    musicBtn.disabled = false;
+    musicBtn.textContent = "Play Music";
+  }
+}
+
+musicBtn.addEventListener('click', async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  if (bgm.paused) {
+    await bgm.play();
+    musicBtn.textContent = "Pause Music";
+  } else {
+    bgm.pause();
+    musicBtn.textContent = "Play Music";
+  }
+});
+
+function prev(){ if(idx>0){ idx--; render(); } }
+function next(){ if(idx<pages.length-1){ idx++; render(); } }
+
+leftArrow.addEventListener('click', ()=>{ if(!leftArrow.classList.contains('disabled')) nextOrPrev(prev); });
+rightArrow.addEventListener('click', ()=>{ if(!rightArrow.classList.contains('disabled')) nextOrPrev(next); });
+
+function nextOrPrev(fn){
+  if(!musicStarted) startMusic();
+  fn();
+}
+
+function tryUnlock(){
+  if(pw.value===PASSWORD){
+    lock.style.display="none";
+    stage.style.filter = "blur(0px)";
+    startMusic();
+  }else{
+    err.style.display="block";
+    pw.select();
+  }
+}
+
+unlockBtn.addEventListener('click',tryUnlock);
+pw.addEventListener('keydown',(e)=>{ if(e.key==="Enter") tryUnlock(); });
+
+/* ---- Secret modal logic ---- */
+secretBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  resetSecretFlow();
+  secretModal.classList.add("show");
+  secretModal.setAttribute("aria-hidden", "false");
+});
+
+closeModalBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  secretModal.classList.remove("show");
+  secretModal.setAttribute("aria-hidden", "true");
+});
+
+secretModal.addEventListener('click', (e) => {
+  // click outside the card closes
+  if (e.target === secretModal) {
+    secretModal.classList.remove("show");
+    secretModal.setAttribute("aria-hidden", "true");
+  }
+});
+
+function showLetter(){
+  proposalStep.style.display = "none";
+  letterStep.style.display = "block";
+}
+
+yesBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  showLetter();
+});
+
+noBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  // First time: turn "No" into "Yes"
+  if (noBtn.textContent.trim().toLowerCase() === "no") {
+    noBtn.textContent = "Yes";
+    return;
+  }
+  // Second click (now it's Yes): show letter
+  showLetter();
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') nextOrPrev(prev);
+  if (e.key === 'ArrowRight') nextOrPrev(next);
+  if (e.key === 'Enter' && lock.style.display !== 'none') unlockBtn.click();
+  if (e.key === 'Escape' && secretModal.classList.contains("show")) {
+    secretModal.classList.remove("show");
+    secretModal.setAttribute("aria-hidden", "true");
+  }
+});
+
+render();
+</script>
+
+</body>
+</html>
